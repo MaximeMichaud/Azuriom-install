@@ -27,7 +27,7 @@ The script support these OS:
 | Ubuntu 20.04 |✅|
 | CentOS 7 |❌|
 ## Features
-* MySQL 5.6 to 8.0
+* MySQL 5.7 to 8.0
 * PHP 7.2 to 7.4
 * phpMyAdmin 5.0.2
 ## To-Do
