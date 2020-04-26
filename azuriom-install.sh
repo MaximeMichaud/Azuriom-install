@@ -92,7 +92,7 @@ function checkOS() {
       fi
     elif [[ "$ID" == "ubuntu" ]]; then
       OS="ubuntu"
-      if [[ ! $VERSION_ID =~ (16.04|18.04|19.04|20.04) ]]; then
+      if [[ ! $VERSION_ID =~ (16.04|18.04|20.04) ]]; then
         echo "⚠️ ${alert}Your version of Ubuntu is not supported.${normal}"
         echo ""
         echo "However, if you're using Ubuntu > 17 or beta, then you can continue."
@@ -136,6 +136,7 @@ function script() {
   aptinstall_mysql
   aptinstall_php
   aptinstall_phpmyadmin
+  install_composer
   install_azuriom
   setupdone
 
@@ -165,6 +166,38 @@ function installQuestions() {
     PHP="7.4"
     ;;
   esac
+  echo "Which type of database ?"
+  echo "   1) MySQL"
+  echo "   2) MariaDB"
+  echo "   3) SQLite"
+  until [[ "$DATABASE" =~ ^[1-3]$ ]]; do
+    read -rp "Version [1-3]: " -e -i 1 DATABASE
+  done
+  case $DATABASE in
+  1)
+    database="mysql"
+    ;;
+  2)
+    database="mariadb"
+  3)
+    database="sqlite"
+    ;;
+  esac
+  esac
+  echo "Which version of MySQL ?"
+  echo "   1) MySQL 5.7"
+  echo "   2) MySQL 8.0"
+  until [[ "$DATABASE_VER" =~ ^[1-2]$ ]]; do
+    read -rp "Version [1-2]: " -e -i 1 DATABASE_VER
+  done
+  case $DATABASE_VER in
+  1)
+    database_ver="5.7"
+    ;;
+  2)
+    database_ver="8.0"
+    ;;
+  esac
   echo ""
   echo "We are ready to start the installation !"
   APPROVE_INSTALL=${APPROVE_INSTALL:-n}
@@ -172,7 +205,6 @@ function installQuestions() {
     read -n1 -r -p "Press any key to continue..."
   fi
 }
-
 function aptupdate() {
   apt-get update
 }
@@ -194,16 +226,16 @@ function aptinstall_mysql() {
     echo "MYSQL Installation"
     wget https://github.com/MaximeMichaud/Azuriom-install/blob/master/conf/default-auth-override.cnf -P /etc/mysql/mysql.conf.d
     if [[ "$VERSION_ID" == "9" ]]; then
-      echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-8.0" >/etc/apt/sources.list.d/mysql.list
-      echo "deb-src http://repo.mysql.com/apt/debian/ stretch mysql-8.0" >>/etc/apt/sources.list.d/mysql.list
+      echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-$database_ver" >/etc/apt/sources.list.d/mysql.list
+      echo "deb-src http://repo.mysql.com/apt/debian/ stretch mysql-$database_ver" >>/etc/apt/sources.list.d/mysql.list
       apt-key adv --keyserver keys.gnupg.net --recv-keys 8C718D3B5072E1F5
       apt-get update
       apt-get install --allow-unauthenticated mysql-server mysql-client -y
       systemctl enable mysql && systemctl start mysql
     fi
     if [[ "$VERSION_ID" == "10" ]]; then
-      echo "deb http://repo.mysql.com/apt/debian/ buster mysql-8.0" >/etc/apt/sources.list.d/mysql.list
-      echo "deb-src http://repo.mysql.com/apt/debian/ buster mysql-8.0" >>/etc/apt/sources.list.d/mysql.list
+      echo "deb http://repo.mysql.com/apt/debian/ buster mysql-$database_ver" >/etc/apt/sources.list.d/mysql.list
+      echo "deb-src http://repo.mysql.com/apt/debian/ buster mysql-$database_ver" >>/etc/apt/sources.list.d/mysql.list
       apt-key adv --keyserver keys.gnupg.net --recv-keys 8C718D3B5072E1F5
       apt-get update
       apt-get install --allow-unauthenticated mysql-server mysql-client -y
@@ -211,32 +243,32 @@ function aptinstall_mysql() {
     fi
     if [[ "$VERSION_ID" == "11" ]]; then
       # not available right now
-      echo "deb http://repo.mysql.com/apt/debian/ bullseye mysql-8.0" >/etc/apt/sources.list.d/mysql.list
-      echo "deb-src http://repo.mysql.com/apt/debian/ bullseye mysql-8.0" >>/etc/apt/sources.list.d/mysql.list
+      echo "deb http://repo.mysql.com/apt/debian/ bullseye mysql-$database_ver" >/etc/apt/sources.list.d/mysql.list
+      echo "deb-src http://repo.mysql.com/apt/debian/ bullseye mysql-$database_ver" >>/etc/apt/sources.list.d/mysql.list
       apt-key adv --keyserver keys.gnupg.net --recv-keys 8C718D3B5072E1F5
       apt-get update
       apt-get install --allow-unauthenticated mysql-server mysql-client -y
       systemctl enable mysql && systemctl start mysql
     fi
     if [[ "$VERSION_ID" == "16.04" ]]; then
-      echo "deb http://repo.mysql.com/apt/ubuntu/ xenial mysql-8.0" >/etc/apt/sources.list.d/mysql.list
-      echo "deb-src http://repo.mysql.com/apt/ubuntu/ xenial mysql-8.0" >>/etc/apt/sources.list.d/mysql.list
+      echo "deb http://repo.mysql.com/apt/ubuntu/ xenial mysql-$database_ver" >/etc/apt/sources.list.d/mysql.list
+      echo "deb-src http://repo.mysql.com/apt/ubuntu/ xenial mysql-$database_ver" >>/etc/apt/sources.list.d/mysql.list
       apt-key adv --keyserver keys.gnupg.net --recv-keys 8C718D3B5072E1F5
       apt-get update
       apt-get install --allow-unauthenticated mysql-server mysql-client -y
       systemctl enable mysql && systemctl start mysql
     fi
     if [[ "$VERSION_ID" == "18.04" ]]; then
-      echo "deb http://repo.mysql.com/apt/ubuntu/ bionic mysql-8.0" >/etc/apt/sources.list.d/mysql.list
-      echo "deb-src http://repo.mysql.com/apt/ubuntu/ bionic mysql-8.0" >>/etc/apt/sources.list.d/mysql.list
+      echo "deb http://repo.mysql.com/apt/ubuntu/ bionic mysql-$database_ver" >/etc/apt/sources.list.d/mysql.list
+      echo "deb-src http://repo.mysql.com/apt/ubuntu/ bionic mysql-$database_ver" >>/etc/apt/sources.list.d/mysql.list
       apt-key adv --keyserver keys.gnupg.net --recv-keys 8C718D3B5072E1F5
       apt-get update
       apt-get install --allow-unauthenticated mysql-server mysql-client -y
       systemctl enable mysql && systemctl start mysql
     fi
     if [[ "$VERSION_ID" == "20.04" ]]; then
-      echo "deb http://repo.mysql.com/apt/ubuntu/ focal mysql-8.0" >/etc/apt/sources.list.d/mysql.list
-      echo "deb-src http://repo.mysql.com/apt/ubuntu/ focal mysql-8.0" >>/etc/apt/sources.list.d/mysql.list
+      echo "deb http://repo.mysql.com/apt/ubuntu/ focal mysql-$database_ver" >/etc/apt/sources.list.d/mysql.list
+      echo "deb-src http://repo.mysql.com/apt/ubuntu/ focal mysql-$database_ver" >>/etc/apt/sources.list.d/mysql.list
       apt-key adv --keyserver keys.gnupg.net --recv-keys 8C718D3B5072E1F5
       apt-get update
       apt-get install --allow-unauthenticated mysql-server mysql-client -y
@@ -338,6 +370,7 @@ function install_azuriom() {
   rm -rf Azuriom-$AZURIOM_VER.zip
   chmod -R 770 storage bootstrap/cache resources/themes plugins
   chown -R www-data:www-data /var/www/html
+  echo "* * * * * cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1"
 }
 
 function install_composer() {
