@@ -92,7 +92,7 @@ function checkOS() {
       fi
     elif [[ "$ID" == "ubuntu" ]]; then
       OS="ubuntu"
-      if [[ ! $VERSION_ID =~ (16.04|18.04|20.04) ]]; then
+      if [[ ! $VERSION_ID =~ (16.04|18.04|19.04|20.04) ]]; then
         echo "⚠️ ${alert}Your version of Ubuntu is not supported.${normal}"
         echo ""
         echo "However, if you're using Ubuntu > 17 or beta, then you can continue."
@@ -132,6 +132,7 @@ function script() {
   aptupdate
   aptinstall
   aptinstall_apache2
+  mod_cloudflare
   aptinstall_mysql
   aptinstall_php
   aptinstall_phpmyadmin
@@ -345,13 +346,14 @@ function install_composer() {
   chmod +x /usr/local/bin/composer
 }
 
-function apt-apache2_cloudflare() {
-  apt-get update >/dev/null
-  cd /root/ || exit
-  apt-get install libtool apache2-dev
-  wget https://www.cloudflare.com/static/misc/mod_cloudflare/mod_cloudflare.c
-  apxs -a -i -c mod_cloudflare.c
-  apxs2 -a -i -c mod_cloudflare.c
+function mod_cloudflare() {
+  #experimental :)
+  a2enmod remoteip
+  cd /etc/apache2 || exit
+  wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/apache2.conf
+  wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/000-default.conf
+  cd /etc/apache2/conf-available || exit
+  wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/remoteip.conf
   systemctl restart apache2
 }
 
