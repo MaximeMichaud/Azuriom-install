@@ -350,10 +350,10 @@ function mod_cloudflare() {
   #experimental :)
   a2enmod remoteip
   cd /etc/apache2 || exit
-  wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/apache2.conf
-  wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/000-default.conf
+  wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/dev/conf/cloudflare/apache2.conf
+  wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/dev/conf/cloudflare/000-default.conf
   cd /etc/apache2/conf-available || exit
-  wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/remoteip.conf
+  wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/dev/conf/cloudflare/remoteip.conf
   systemctl restart apache2
 }
 
