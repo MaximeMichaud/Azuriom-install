@@ -43,9 +43,9 @@ This script supports the following Linux distributions:
 - (not yet) Automatic configuration of Let's Encrypt.
 - (not yet) Automatic configuration of Firewall
 ## Supports
-* NGINX 1.21.X & Apache2
+* NGINX 1.22.X & Apache2
 * MySQL 5.7 - 8.0 & MariaDB 10.3 - 10.6
-* PHP 7.4 to 8.1
+* PHP 7.4 to 8.2
 * phpMyAdmin 5.2.0
 ## DOCUMENTATION
 **[WIKI](https://github.com/MaximeMichaud/Azuriom-install/wiki/)**

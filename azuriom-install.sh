@@ -22,6 +22,10 @@
 #   copies or substantial portions of the Software.
 #
 #################################################################################
+#Logs
+exec 3<&1
+coproc mytee { tee /root/azuriom-install.log >&3; }
+exec >&"${mytee[1]}" 2>&1
 #Colors
 red=$(tput setaf 1)
 green=$(tput setaf 2)
@@ -31,6 +35,8 @@ white=$(tput setaf 7)
 normal=$(tput sgr0)
 alert=${white}${on_red}
 on_red=$(tput setab 1)
+# Variables Shell
+export DEBIAN_FRONTEND=noninteractive
 # Define installation parameters for headless install (fallback if unspecifed)
 if [[ $HEADLESS == "y" ]]; then
   # Define options
@@ -136,20 +142,24 @@ function installQuestions() {
     echo ""
     echo "${cyan}Which Version of PHP ?"
     echo "${red}Red = End of life ${yellow}| Yellow = Security fixes only ${green}| Green = Active support"
-    echo "   1) PHP 8.1 (recommended) ${normal}"
-    echo "   2) PHP 8 ${normal}"
-    echo "${yellow}   3) PHP 7.4 ${normal}${cyan}"
-    until [[ "$PHP_VERSION" =~ ^[1-3]$ ]]; do
-      read -rp "Version [1-3]: " -e -i 1 PHP_VERSION
+    echo "   1) PHP 8.2 ${normal}"
+    echo "   2) PHP 8.1 (recommended) ${normal}"
+    echo "   3) PHP 8 ${normal}"
+    echo "${yellow}   4) PHP 7.4 ${normal}${cyan}"
+    until [[ "$PHP_VERSION" =~ ^[1-4]$ ]]; do
+      read -rp "Version [1-4]: " -e -i 1 PHP_VERSION
     done
     case $PHP_VERSION in
     1)
-      PHP="8.1"
+      PHP="8.2"
       ;;
     2)
-      PHP="8.0"
+      PHP="8.1"
       ;;
     3)
+      PHP="8.0"
+      ;;
+    4)
       PHP="7.4"
       ;;
     esac
@@ -178,7 +188,7 @@ function installQuestions() {
       1)
         nginx_branch="mainline"
         ;;
-      2)
+      2) # stable not working (the nginx repo doesn't have the same structure in URL)
         nginx_branch="stable"
         ;;
       esac
@@ -298,14 +308,11 @@ function aptinstall_nginx() {
 }
 
 function aptinstall_mariadb() {
+  echo "MariaDB Installation"
   if [[ "$OS" =~ (debian|ubuntu) ]]; then
-    echo "MariaDB Installation"
-    apt-key adv --fetch-keys 'https://mariadb.org/mariadb_release_signing_key.asc'
-    if [[ "$VERSION_ID" =~ (10|11|20.04|22.04) ]]; then
-      echo "deb [arch=amd64] https://mirror.mva-n.net/mariadb/repo/$database_ver/$ID $(lsb_release -sc) main" >/etc/apt/sources.list.d/mariadb.list
-      apt-get update && apt-get install mariadb-server -y
-      systemctl enable mariadb && systemctl start mariadb
-    fi
+    echo "deb [arch=amd64] https://dlm.mariadb.com/repo/mariadb-server/$database_ver/repo/$ID $(lsb_release -sc) main" >/etc/apt/sources.list.d/mariadb.list
+    apt-get update && apt-get install mariadb-server -y
+    systemctl enable mariadb && systemctl start mariadb
   fi
 }
 
@@ -317,7 +324,7 @@ function aptinstall_mysql() {
       wget https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/mysql/default-auth-override.cnf -P /etc/mysql/mysql.conf.d
     fi
     if [[ "$VERSION_ID" =~ (10|11|20.04|22.04) ]]; then
-      echo "deb https://repo.mysql.com/apt/$ID/ $(lsb_release -sc) mysql-$database_ver">/etc/apt/sources.list.d/mysql.list
+      echo "deb https://repo.mysql.com/apt/$ID/ $(lsb_release -sc) mysql-$database_ver" >/etc/apt/sources.list.d/mysql.list
       echo "deb-src https://repo.mysql.com/apt/$ID/ $(lsb_release -sc) mysql-$database_ver" >>/etc/apt/sources.list.d/mysql.list
       apt-get update && apt-get install mysql-server mysql-client -y
       systemctl enable mysql && systemctl start mysql
@@ -345,49 +352,17 @@ function aptinstall_php() {
     if [[ "$webserver" =~ (nginx) ]]; then
       if [[ "$VERSION_ID" =~ (10|11) ]]; then
         echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
-        apt-get update && apt-get install php$PHP{,-bcmath,-mbstring,-common,-xml,-curl,-gd,-zip,-mysql,-fpm} -y
-        sed -i 's|upload_max_filesize = 2M|upload_max_filesize = 50M|' /etc/php/$PHP/fpm/php.ini
-        sed -i 's|post_max_size = 8M|post_max_size = 50M|' /etc/php/$PHP/fpm/php.ini
-        sed -i 's|;max_input_vars = 1000|max_input_vars = 2000|' /etc/php/$PHP/fpm/php.ini
-        sed -i 's|memory_limit = 128M|memory_limit = 256M|' /etc/php/$PHP/fpm/php.ini
-        service php$PHP-fpm restart
-        apt-get remove apache2 -y
-        systemctl restart nginx
       fi
       if [[ "$VERSION_ID" =~ (20.04|22.04) ]]; then
         add-apt-repository -y ppa:ondrej/php
-        apt-get update && apt-get install php$PHP{,-bcmath,-mbstring,-common,-xml,-curl,-gd,-zip,-mysql,-fpm} -y
-        sed -i 's|upload_max_filesize = 2M|upload_max_filesize = 50M|' /etc/php/$PHP/fpm/php.ini
-        sed -i 's|post_max_size = 8M|post_max_size = 50M|' /etc/php/$PHP/fpm/php.ini
-        sed -i 's|;max_input_vars = 1000|max_input_vars = 2000|' /etc/php/$PHP/fpm/php.ini
-        sed -i 's|memory_limit = 128M|memory_limit = 256M|' /etc/php/$PHP/fpm/php.ini
-        service php$PHP-fpm restart
-        apt-get remove apache2 -y
-        systemctl restart nginx
       fi
     fi
-    if [[ "$webserver" =~ (apache2) ]]; then
-      if [[ "$VERSION_ID" =~ (10|11) ]]; then
-        echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
-        apt-get update && apt-get install php$PHP{,-bcmath,-mbstring,-common,-xml,-curl,-gd,-zip,-mysql} -y
-        sed -i 's|upload_max_filesize = 2M|upload_max_filesize = 50M|' /etc/php/$PHP/apache2/php.ini
-        sed -i 's|post_max_size = 8M|post_max_size = 50M|' /etc/php/$PHP/apache2/php.ini
-        sed -i 's|;max_input_vars = 1000|max_input_vars = 2000|' /etc/php/$PHP/apache2/php.ini
-        sed -i 's|memory_limit = 128M|memory_limit = 256M|' /etc/php/$PHP/fpm/php.ini
-        service php$PHP-fpm restart
-        systemctl restart apache2
-      fi
-      if [[ "$VERSION_ID" =~ (20.04|22.04) ]]; then
-        add-apt-repository -y ppa:ondrej/php
-        apt-get update && apt-get install php$PHP{,-bcmath,-mbstring,-common,-xml,-curl,-gd,-zip,-mysql} -y
-        sed -i 's|upload_max_filesize = 2M|upload_max_filesize = 50M|' /etc/php/$PHP/apache2/php.ini
-        sed -i 's|post_max_size = 8M|post_max_size = 50M|' /etc/php/$PHP/apache2/php.ini
-        sed -i 's|;max_input_vars = 1000|max_input_vars = 2000|' /etc/php/$PHP/apache2/php.ini
-        sed -i 's|memory_limit = 128M|memory_limit = 256M|' /etc/php/$PHP/fpm/php.ini
-        service php$PHP-fpm restart
-        systemctl restart apache2
-      fi
-    fi
+    apt-get update && apt-get install php$PHP{,-bcmath,-mbstring,-common,-xml,-curl,-gd,-zip,-mysql} -y
+    sed -i 's|upload_max_filesize = 2M|upload_max_filesize = 50M|' /etc/php/$PHP/apache2/php.ini
+    sed -i 's|post_max_size = 8M|post_max_size = 50M|' /etc/php/$PHP/apache2/php.ini
+    sed -i 's|;max_input_vars = 1000|max_input_vars = 2000|' /etc/php/$PHP/apache2/php.ini
+    sed -i 's|memory_limit = 128M|memory_limit = 256M|' /etc/php/$PHP/fpm/php.ini
+    systemctl restart php$PHP
   fi
 }
 
@@ -468,11 +443,10 @@ function install_azuriom() {
 }
 
 function autoUpdate() {
-  if [[ "$OS" =~ (debian|ubuntu) ]]; then
-    echo "Enable Automatic Updates..."
+  if [[ "$AUTOUPDATE" =~ (YES) ]]; then
     apt-get install -y unattended-upgrades
-  elif [[ "$OS" == "centos" ]]; then
-    echo "No Support"
+    sed -i 's|APT::Periodic::Update-Package-Lists "0";|APT::Periodic::Update-Package-Lists "1";|' /etc/apt/apt.conf.d/20auto-upgrades
+    sed -i 's|APT::Periodic::Unattended-Upgrade "0";|APT::Periodic::Unattended-Upgrade "1";|' /etc/apt/apt.conf.d/20auto-upgrades
   fi
 }
 
