@@ -308,6 +308,7 @@ function aptinstall_nginx() {
 }
 
 function aptinstall_mariadb() {
+  apt-key adv --fetch-keys 'https://mariadb.org/mariadb_release_signing_key.asc'
   echo "MariaDB Installation"
   if [[ "$OS" =~ (debian|ubuntu) ]]; then
     echo "deb [arch=amd64] https://dlm.mariadb.com/repo/mariadb-server/$database_ver/repo/$ID $(lsb_release -sc) main" >/etc/apt/sources.list.d/mariadb.list
