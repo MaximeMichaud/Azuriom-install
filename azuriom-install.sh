@@ -120,7 +120,8 @@ function script() {
   updatepackages
   aptinstall
   aptinstall_php
-  aptinstall_"$webserver"
+  #aptinstall_"$webserver"
+  aptinstall_nginx
   aptinstall_"$database"
   aptinstall_phpmyadmin
   install_composer
@@ -163,36 +164,36 @@ function installQuestions() {
       PHP="7.4"
       ;;
     esac
-    echo "Which type of webserver ?"
-    echo "   1) NGINX"
-    echo "   2) Apache2"
-    until [[ "$WEBSERVER" =~ ^[1-2]$ ]]; do
-      read -rp "Version [1-2]: " -e -i 1 WEBSERVER
-    done
-    case $WEBSERVER in
-    1)
-      webserver="nginx"
-      ;;
-    2)
-      webserver="apache2"
-      ;;
-    esac
-    if [[ "$webserver" =~ (nginx) ]]; then
-      echo "Which branch of NGINX ?"
-      echo "${green}   1) Mainline ${normal}"
-      echo "${green}   2) Stable ${normal}${cyan}"
-      until [[ "$NGINX_BRANCH" =~ ^[1-2]$ ]]; do
-        read -rp "Version [1-2]: " -e -i 1 NGINX_BRANCH
-      done
-      case $NGINX_BRANCH in
-      1)
-        nginx_branch="mainline"
-        ;;
-      2) # stable not working (the nginx repo doesn't have the same structure in URL)
-        nginx_branch="stable"
-        ;;
-      esac
-    fi
+    # echo "Which type of webserver ?"
+    # echo "   1) NGINX"
+    # echo "   2) Apache2"
+    # until [[ "$WEBSERVER" =~ ^[1-2]$ ]]; do
+      # read -rp "Version [1-2]: " -e -i 1 WEBSERVER
+    # done
+    # case $WEBSERVER in
+    # 1)
+      # webserver="nginx"
+      # ;;
+    # 2)
+      # webserver="apache2"
+      # ;;
+    # esac
+    # if [[ "$webserver" =~ (nginx) ]]; then
+      # echo "Which branch of NGINX ?"
+      # echo "${green}   1) Mainline ${normal}"
+      # echo "${green}   2) Stable ${normal}${cyan}"
+      # until [[ "$NGINX_BRANCH" =~ ^[1-2]$ ]]; do
+        # read -rp "Version [1-2]: " -e -i 1 NGINX_BRANCH
+      # done
+      # case $NGINX_BRANCH in
+      # 1)
+        # nginx_branch="mainline"
+        # ;;
+      #2) # stable not working (the nginx repo doesn't have the same structure in URL)
+        # nginx_branch="stable"
+        # ;;
+      # esac
+    #fi
     echo "Which type of database ?"
     echo "   1) MariaDB"
     echo "   2) MySQL"
@@ -274,14 +275,14 @@ function aptinstall() {
   fi
 }
 
-function aptinstall_apache2() {
-  if [[ "$OS" =~ (debian|ubuntu) ]]; then
-    apt-get install -y apache2
-    a2enmod rewrite
-    wget -O /etc/apache2/sites-available/000-default.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/apache2/000-default.conf
-    service apache2 restart
-  fi
-}
+# function aptinstall_apache2() {
+  # if [[ "$OS" =~ (debian|ubuntu) ]]; then
+    # apt-get install -y apache2
+    # a2enmod rewrite
+    # wget -O /etc/apache2/sites-available/000-default.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/apache2/000-default.conf
+    # service apache2 restart
+  # fi
+# }
 
 function aptinstall_nginx() {
   if [[ "$OS" =~ (debian|ubuntu) ]]; then
@@ -359,9 +360,9 @@ function aptinstall_php() {
       fi
     fi
     apt-get update && apt-get install php$PHP{,-bcmath,-mbstring,-common,-xml,-curl,-gd,-zip,-mysql} -y
-    sed -i 's|upload_max_filesize = 2M|upload_max_filesize = 50M|' /etc/php/$PHP/apache2/php.ini
-    sed -i 's|post_max_size = 8M|post_max_size = 50M|' /etc/php/$PHP/apache2/php.ini
-    sed -i 's|;max_input_vars = 1000|max_input_vars = 2000|' /etc/php/$PHP/apache2/php.ini
+    sed -i 's|upload_max_filesize = 2M|upload_max_filesize = 50M|' /etc/php/$PHP/fpm/php.ini
+    sed -i 's|post_max_size = 8M|post_max_size = 50M|' /etc/php/$PHP/fpm/php.ini
+    sed -i 's|;max_input_vars = 1000|max_input_vars = 2000|' /etc/php/$PHP/fpm/php.ini
     sed -i 's|memory_limit = 128M|memory_limit = 256M|' /etc/php/$PHP/fpm/php.ini
     systemctl restart php$PHP
   fi
@@ -382,11 +383,11 @@ function aptinstall_phpmyadmin() {
     randomBlowfishSecret=$(openssl rand -base64 22)
     sed -e "s|cfg\['blowfish_secret'\] = ''|cfg['blowfish_secret'] = '$randomBlowfishSecret'|" /usr/share/phpmyadmin/config.sample.inc.php >/usr/share/phpmyadmin/config.inc.php
     ln -s /usr/share/phpmyadmin /var/www/phpmyadmin
-    if [[ "$webserver" =~ (apache2) ]]; then
-      wget -O /etc/apache2/sites-available/phpmyadmin.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/apache2/phpmyadmin.conf
-      a2ensite phpmyadmin
-      systemctl restart apache2
-    fi
+    # if [[ "$webserver" =~ (apache2) ]]; then
+      # wget -O /etc/apache2/sites-available/phpmyadmin.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/apache2/phpmyadmin.conf
+      # a2ensite phpmyadmin
+      # systemctl restart apache2
+    # fi
   elif [[ "$OS" == "centos" ]]; then
     echo "No Support"
   fi
@@ -413,15 +414,14 @@ function install_composer() {
   fi
 }
 
-function mod_cloudflare() {
-  #disabled for the moment
-  a2enmod remoteip
-  cd /etc/apache2 || exit
-  wget -O /etc/apache2/apache2.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/apache2.conf
-  wget -O /etc/apache2/000-default.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/000-default.conf
-  wget -O /etc/apache2/conf-available/remoteip.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/remoteip.conf
-  systemctl restart apache2
-}
+# function mod_cloudflare() {
+  # a2enmod remoteip
+  # cd /etc/apache2 || exit
+  # wget -O /etc/apache2/apache2.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/apache2.conf
+  # wget -O /etc/apache2/000-default.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/000-default.conf
+  # wget -O /etc/apache2/conf-available/remoteip.conf https://raw.githubusercontent.com/MaximeMichaud/Azuriom-install/master/conf/cloudflare/remoteip.conf
+  # systemctl restart apache2
+# }
 
 function install_azuriom() {
   mkdir -p /var/www/html/
